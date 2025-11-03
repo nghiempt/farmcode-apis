@@ -1,0 +1,29 @@
+description: "Test Infofinland Flowise Master Filter"
+
+prompts:
+  - "{{question}}"
+
+providers:
+  - id: https
+    config:
+      request: |
+        POST /api/v1/prediction/d0e4af4d-226e-4ae6-a429-fb9583d373d0 HTTP/1.1
+        Host: flowise-sg.imutably.com
+        Content-Type: application/json
+        Authorization: Bearer dV/sAQZs1j649TnVsXUNNeQC8PPSH5JVUxEgM8P2ruo=
+
+        {
+          "question": "{{question}}"
+        }
+      transformResponse: 'json.text'
+
+tests:
+  - vars:
+      question: "Hi"
+    assert:
+      - type: icontains
+        value: "Hello"
+
+sharing:
+  apiBaseUrl: https://promptfoo.imutably.com
+  appBaseUrl: https://promptfoo.imutably.com
