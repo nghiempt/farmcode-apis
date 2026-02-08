@@ -10,6 +10,14 @@ function iattRoute(fastify, options, done) {
     '/auth/login-phone',
     iattController.auth.loginWithPhone
   );
+  fastify.post(
+    '/auth/login-email-admin',
+    iattController.auth.loginWithEmailAdmin
+  );
+  fastify.post(
+    '/auth/login-phone-admin',
+    iattController.auth.loginWithPhoneAdmin
+  );
   fastify.get(
     '/auth/login/google',
     {
@@ -35,9 +43,14 @@ function iattRoute(fastify, options, done) {
 
   fastify.get('/account/', iattController.account.getAllAccounts);
   fastify.get('/account/:id', iattController.account.getAccount);
+  fastify.post('/account', iattController.account.createAccount);
   fastify.post(
     '/account/update/:id',
     iattController.account.updateProfile
+  );
+  fastify.delete(
+    '/account/:id',
+    iattController.account.deleteAccount
   );
   fastify.post(
     '/account/change-password/:id',
@@ -45,6 +58,10 @@ function iattRoute(fastify, options, done) {
   );
 
   fastify.get('/product/', iattController.product.getAllProducts);
+  fastify.get(
+    '/product-with-deleted/',
+    iattController.product.getAllProductsWithDeleted
+  );
   fastify.get('/product/:id', iattController.product.getProduct);
   fastify.post('/product/', iattController.product.createProduct);
   fastify.put('/product/:id', iattController.product.updateProduct);
@@ -106,7 +123,21 @@ function iattRoute(fastify, options, done) {
     iattController.helper.smoothSkin
   );
 
-  fastify.post('/discount/', iattController.discount.checkDiscount);
+  fastify.post(
+    '/discount-check',
+    iattController.discount.checkDiscount
+  );
+  fastify.get('/discount', iattController.discount.getAllDiscount);
+  fastify.get('/discount/:id', iattController.discount.getDiscount);
+  fastify.post('/discount', iattController.discount.createDiscount);
+  fastify.put(
+    '/discount/:id',
+    iattController.discount.updateDiscount
+  );
+  fastify.delete(
+    '/discount/:id',
+    iattController.discount.deleteDiscount
+  );
 
   fastify.get(
     '/comment/:id',

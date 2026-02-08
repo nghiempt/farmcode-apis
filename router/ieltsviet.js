@@ -9,7 +9,6 @@ function ieltsvietRoute(fastify, options, done) {
     '/slider/:id',
     ieltsvietController.slider.deleteSlider
   );
-  // kjckjsndc
 
   fastify.get('/courses', ieltsvietController.course.getAllCourses);
   fastify.post('/course', ieltsvietController.course.createCourse);
@@ -193,7 +192,24 @@ function ieltsvietRoute(fastify, options, done) {
     ieltsvietController.test.getCompleteTest
   );
 
+  fastify.get(
+    '/writing-feedback/:id/:user_id',
+    ieltsvietController.test.getFeedbackByTestId
+  );
+
   fastify.post('/send-email', ieltsvietController.test.sendEmail);
+
+  fastify.post(
+    '/send-email-qa',
+    ieltsvietController.test.sendEmailQA
+  );
+
+  fastify.post(
+    '/test/ask-chatgpt',
+    ieltsvietController.test.askChatGPT
+  );
+
+  fastify.get('/file/:id', ieltsvietController.file.getFile);
 
   done();
 }

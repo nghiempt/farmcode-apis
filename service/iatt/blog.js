@@ -1,10 +1,9 @@
 const { iattModel } = require('~/model');
-const { ObjectId } = require("mongodb");
+const { ObjectId } = require('mongodb');
 
 async function getAllBlogs() {
   const blogs = await iattModel.blog.find({});
-  return blogs
-    .filter(blog => !blog.deleted_at);
+  return blogs.filter((blog) => !blog.deleted_at);
 }
 
 async function getBlog(id) {
@@ -23,7 +22,10 @@ async function deleteBlog(id) {
   const dataUpdate = {
     deleted_at: new Date(),
   };
-  return iattModel.blog.updateOne({ _id: new ObjectId(id) }, dataUpdate);
+  return iattModel.blog.updateOne(
+    { _id: new ObjectId(id) },
+    dataUpdate
+  );
 }
 
 module.exports = {
@@ -31,5 +33,5 @@ module.exports = {
   getBlog,
   createBlog,
   updateBlog,
-  deleteBlog
+  deleteBlog,
 };

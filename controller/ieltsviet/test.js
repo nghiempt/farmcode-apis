@@ -1,3 +1,4 @@
+// const { content } = require('node_modules/googleapis/build/src/apis/content');
 const {
   statusCode,
   successMessage,
@@ -344,6 +345,29 @@ async function getCompleteTest(request, reply) {
   }
 }
 
+async function sendEmailQA(request, reply) {
+  try {
+    console.log('==============Sending email QA...==============');
+
+    const data = request.body;
+
+    const transporter = ieltsvietService.test.transporter();
+    const mailOptions = ieltsvietService.test.mailOptionsQA(data);
+
+    const info = await transporter.sendMail(mailOptions);
+
+    return reply.status(statusCode.success).send({
+      message: 'Email sent successfully',
+      data: info.response,
+    });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    reply
+      .status(statusCode.internalError)
+      .send({ message: error.message || failMessage.internalError });
+  }
+}
+
 async function sendEmail(request, reply) {
   try {
     console.log('==============Sending email...==============');
@@ -369,8 +393,63 @@ async function sendEmail(request, reply) {
   }
 }
 
+async function askChatGPT(request, reply) {
+  try {
+    // Extract data from request body
+    const userMessage = {
+      test_type: request.body.test_type,
+      content: request.body.content,
+    };
+
+    const result =
+      await ieltsvietService.test.askChatGPT(userMessage);
+
+    // Return successful response
+    // res.status(200).json({
+    //   success: true,
+    //   data: JSON.parse(result), // Parse the JSON string returned from service
+    // });
+
+    return reply.status(statusCode.success).send({
+      message: 'Successfully processed IELTS Reading analysis',
+      data: result,
+    });
+  } catch (error) {
+    // Handle errors and return appropriate response
+    // res.status(500).json({
+    //   success: false,
+    //   message: 'Failed to process IELTS writing assessment',
+    //   error: error.message,
+    // });
+    console.error('Error ask chat GPT:', error);
+    reply
+      .status(statusCode.internalError)
+      .send({ message: error.message || failMessage.internalError });
+  }
+}
+
+async function getFeedbackByTestId(request, reply) {
+  try {
+    const { id } = request.params;
+    const { user_id } = request.params;
+
+    const data = await ieltsvietService.test.getFeedbackByTestId(
+      id,
+      user_id
+    );
+    return reply
+      .status(statusCode.success)
+      .send({ data: data, message: successMessage.index });
+  } catch (err) {
+    reply
+      .status(statusCode.internalError)
+      .send({ message: failMessage.internalError });
+  }
+}
+
 module.exports = {
   sendEmail,
+  sendEmailQA,
   getAllCollections,
   getCollection,
   createCollection,
@@ -394,4 +473,6 @@ module.exports = {
   getCompleteTestByUserId,
   getCompleteTest,
   getAllUserAnswers,
+  askChatGPT,
+  getFeedbackByTestId,
 };

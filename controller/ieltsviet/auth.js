@@ -13,7 +13,7 @@ async function loginWithGoogle(request, reply) {
     });
     if (data) {
       reply.redirect(
-        `${process.env.CLIENT_URL}/sso?account_id=${data?._id}`
+        `${process.env.CLIENT_URL}/sso?user_id=${data?._id}`
       );
     } else {
       const dataAccount = {
@@ -28,11 +28,11 @@ async function loginWithGoogle(request, reply) {
       const newUser =
         await ieltsvietService.user.createUserGG(dataAccount);
       reply.redirect(
-        `${process.env.CLIENT_URL}/sso?account_id=${newUser?.insertedId}`
+        `${process.env.CLIENT_URL}/sso?user_id=${newUser?.insertedId}`
       );
     }
   } catch (error) {
-    reply.redirect(`${process.env.CLIENT_URL}/sso?account_id=null`);
+    reply.redirect(`${process.env.CLIENT_URL}/sso?user_id=null`);
   }
 }
 
