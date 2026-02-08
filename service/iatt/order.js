@@ -71,6 +71,7 @@ async function createOrder(account, order) {
       discount_price: order.discount_price,
       total: order.total,
       status: 'waiting',
+      isPayed: false,
       date_completed: '',
       product_name: ans.name,
       product_price: ans.category,
@@ -92,6 +93,7 @@ async function createOrder(account, order) {
       discount_price: order.discount_price,
       total: order.total,
       status: 'paid pending',
+      isPayed: false,
       date_completed: '',
       product_name: ans.name,
       product_price: ans.category,
@@ -116,8 +118,8 @@ async function createOrder(account, order) {
     order_id: result.insertedId,
     order_total: order.total,
   };
-  const payUrl = await payment.momo(payment_data);
-  return payUrl;
+  // const payUrl = await payment.momo(payment_data);
+  return result;
 }
 
 async function createOrderWithoutLogin(account, order) {
@@ -176,6 +178,7 @@ async function createOrderWithoutLogin(account, order) {
       discount_price: order.discount_price,
       total: order.total,
       status: 'waiting',
+      isPayed: false,
       date_completed: '',
       product_name: ans.name,
       product_price: ans.category,
@@ -197,6 +200,7 @@ async function createOrderWithoutLogin(account, order) {
       discount_price: order.discount_price,
       total: order.total,
       status: 'paid pending',
+      isPayed: false,
       date_completed: '',
       product_name: ans.name,
       product_price: ans.category,
@@ -238,22 +242,40 @@ async function createOrderWithoutLogin(account, order) {
       };
     }
   } else {
-    const payUrl = await payment.momo(payment_data);
+    // const payUrl = await payment.momo(payment_data);
+    // if (customer.email == '') {
+    //   return {
+    //     user_id: user_id,
+    //     phone: customer.phone,
+    //     password: customer.password,
+    //     payUrl: payUrl,
+    //     isAccountExisted,
+    //   };
+    // } else {
+    //   return {
+    //     user_id: user_id,
+    //     email: customer.email,
+    //     password: customer.password,
+    //     payUrl: payUrl,
+    //     isAccountExisted,
+    //   };
+    // }
+
     if (customer.email == '') {
       return {
         user_id: user_id,
         phone: customer.phone,
         password: customer.password,
-        payUrl: payUrl,
-        isAccountExisted,
+        isAccountExisted: isAccountExisted,
+        order_id: result.insertedId,
       };
     } else {
       return {
         user_id: user_id,
         email: customer.email,
         password: customer.password,
-        payUrl: payUrl,
-        isAccountExisted,
+        isAccountExisted: isAccountExisted,
+        order_id: result.insertedId,
       };
     }
   }
@@ -327,6 +349,7 @@ async function createOrderAlbum(account, order) {
       discount_price: order.discount_price,
       total: order.total,
       status: 'waiting',
+      isPayed: false,
       date_completed: '',
       album_price: order.album_price,
     };
@@ -346,6 +369,7 @@ async function createOrderAlbum(account, order) {
       discount_price: order.discount_price,
       total: order.total,
       status: 'paid pending',
+      isPayed: false,
       date_completed: '',
       album_price: order.album_price,
     };
@@ -365,8 +389,8 @@ async function createOrderAlbum(account, order) {
     order_id: order.order_id,
     order_total: order.total,
   };
-  const payUrl = await payment.momo(payment_data);
-  return payUrl;
+  // const payUrl = await payment.momo(payment_data);
+  return result;
 }
 
 async function createOrderAlbumWithoutLogin(account, order) {
@@ -420,6 +444,7 @@ async function createOrderAlbumWithoutLogin(account, order) {
       discount_price: order.discount_price,
       total: order.total,
       status: 'waiting',
+      isPayed: false,
       date_completed: '',
       album_price: order.album_price,
     };
@@ -439,6 +464,7 @@ async function createOrderAlbumWithoutLogin(account, order) {
       discount_price: order.discount_price,
       total: order.total,
       status: 'paid pending',
+      isPayed: false,
       date_completed: '',
       album_price: order.album_price,
     };
@@ -475,22 +501,40 @@ async function createOrderAlbumWithoutLogin(account, order) {
       };
     }
   } else {
-    const payUrl = await payment.momo(payment_data);
+    // const payUrl = await payment.momo(payment_data);
+    // if (customer.email == '') {
+    //   return {
+    //     user_id: user_id,
+    //     phone: customer.phone,
+    //     password: customer.password,
+    //     payUrl: payUrl,
+    //     isAccountExisted,
+    //   };
+    // } else {
+    //   return {
+    //     user_id: user_id,
+    //     email: customer.email,
+    //     password: customer.password,
+    //     payUrl: payUrl,
+    //     isAccountExisted,
+    //   };
+    // }
+
     if (customer.email == '') {
       return {
         user_id: user_id,
         phone: customer.phone,
         password: customer.password,
-        payUrl: payUrl,
-        isAccountExisted,
+        isAccountExisted: isAccountExisted,
+        order_id: result.insertedId,
       };
     } else {
       return {
         user_id: user_id,
         email: customer.email,
         password: customer.password,
-        payUrl: payUrl,
-        isAccountExisted,
+        isAccountExisted: isAccountExisted,
+        order_id: result.insertedId,
       };
     }
   }

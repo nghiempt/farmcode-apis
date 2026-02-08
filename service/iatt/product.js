@@ -6,6 +6,11 @@ async function getAllProducts() {
   return products.filter((product) => !product.deleted_at);
 }
 
+async function getAllProductsWithDeleted() {
+  const products = await iattModel.product.find({});
+  return products;
+}
+
 async function getProduct(id) {
   return iattModel.product.findOne({ _id: new ObjectId(id) });
 }
@@ -30,6 +35,7 @@ async function deleteProduct(id) {
 
 module.exports = {
   getAllProducts,
+  getAllProductsWithDeleted,
   getProduct,
   createProduct,
   updateProduct,

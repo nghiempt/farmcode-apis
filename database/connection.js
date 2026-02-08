@@ -39,6 +39,7 @@ let _ieltsvietQuestionCol = null;
 let _ieltsvietCompletepartCol = null;
 let _ieltsvietTestcollectionCol = null;
 let _ieltsvietFeedbackCol = null;
+let _ieltsvietFileCol = null;
 
 async function connection(cb) {
   if (db) {
@@ -82,6 +83,7 @@ async function connection(cb) {
     _ieltsvietTestcollectionCol = db.collection(
       'ieltsviet_testcollections'
     );
+    _ieltsvietFileCol = db.collection('ieltsviet_files');
     _ieltsvietFeedbackCol = db.collection('ieltsviet_feedback');
     _helperAddressCol = db.collection('helper_address');
 
@@ -125,6 +127,7 @@ const ieltsvietQuestionCol = () => _ieltsvietQuestionCol;
 const ieltsvietCompletepartCol = () => _ieltsvietCompletepartCol;
 const ieltsvietTestcollectionCol = () => _ieltsvietTestcollectionCol;
 const ieltsvietFeedbackCol = () => _ieltsvietFeedbackCol;
+const ieltsvietFileCol = () => _ieltsvietFileCol;
 
 module.exports = {
   connection,
@@ -154,5 +157,6 @@ module.exports = {
   ieltsvietCompletepartCol,
   ieltsvietTestcollectionCol,
   ieltsvietFeedbackCol,
+  ieltsvietFileCol,
   helperAddressCol,
 };

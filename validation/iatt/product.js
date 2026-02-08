@@ -14,15 +14,19 @@ const CreateProductSchema = Joi.object().keys({
     .min(1)
     .required(),
   category: Joi.string()
-    .valid('Frame', 'Album', 'Plastic')
+    .valid('Frame', 'Album', 'Plastic', 'Plastic-Frame')
     .required(),
   color: Joi.array()
     .items(
       Joi.string().valid('black', 'gold', 'white', 'wood', 'silver')
     )
     .required(),
+  discount: Joi.number().required(),
+  rating: Joi.number().required(),
   thumbnail: Joi.string().uri().required(),
   images: Joi.array().items(Joi.string().uri()).required(),
+  video: Joi.string().uri().allow('').optional(),
+  active: Joi.boolean().required(),
 });
 
 const UpdateProductSchema = Joi.object().keys({
@@ -34,16 +38,20 @@ const UpdateProductSchema = Joi.object().keys({
     .min(1)
     .optional(),
   category: Joi.string()
-    .valid('Frame', 'Album', 'Plastic')
+    .valid('Frame', 'Album', 'Plastic', 'Plastic-Frame')
     .optional(),
   color: Joi.array()
     .items(
       Joi.string().valid('black', 'gold', 'white', 'wood', 'silver')
     )
     .optional(),
+  discount: Joi.number().optional(),
+  rating: Joi.number().optional(),
   sold: Joi.number().optional(),
   thumbnail: Joi.string().uri().optional(),
   images: Joi.array().items(Joi.string().uri()).optional(),
+  video: Joi.string().uri().allow('').optional(),
+  active: Joi.boolean().optional(),
 });
 
 module.exports = {

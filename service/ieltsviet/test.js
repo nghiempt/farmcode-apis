@@ -6,6 +6,48 @@ const nodemailer = require('nodemailer');
 require('dotenv').config();
 const path = require('path');
 const { text } = require('stream/consumers');
+const OpenAI = require('openai');
+const cors = require('cors');
+
+// const app = require('express')();
+// app.use(cors());
+
+// app.use(cors({
+//   origin: 'http://localhost:3000',
+//   credentials: true,
+// }));
+
+// Helper function to normalize answers for comparison
+function normalizeAnswer(answer) {
+  if (Array.isArray(answer)) {
+    return answer.map((item) =>
+      typeof item === 'string' ? item.toLowerCase().trim() : item
+    );
+  }
+  return typeof answer === 'string'
+    ? answer.toLowerCase().trim()
+    : answer;
+}
+
+// Helper function to compare answers (handles both arrays and strings)
+function compareAnswers(correctAnswer, userAnswer) {
+  const normalizedCorrect = normalizeAnswer(correctAnswer);
+  const normalizedUser = normalizeAnswer(userAnswer);
+
+  if (
+    Array.isArray(normalizedCorrect) &&
+    Array.isArray(normalizedUser)
+  ) {
+    return (
+      normalizedCorrect.length === normalizedUser.length &&
+      normalizedCorrect.every(
+        (val, index) => val === normalizedUser[index]
+      )
+    );
+  }
+
+  return normalizedCorrect === normalizedUser;
+}
 
 async function getAllCollections() {
   const collections = await ieltsvietModel.testcollection.find({});
@@ -206,24 +248,24 @@ async function getAllSkillTests(type) {
   } else {
     var tests = await ieltsvietModel.stest.find({});
   }
-  const processedTests = [];
-  const existingTests = tests.filter((test) => !test.deleted_at);
-  for (const test of existingTests) {
-    let totalQuestions = 0;
-    for (const partId of test.parts) {
-      const part = await ieltsvietModel.testpart.findOne({
-        _id: new ObjectId(partId),
-        deleted_at: { $exists: false },
-      });
-      totalQuestions += part.question.length;
-    }
-    processedTests.push({
-      ...test,
-      number_of_questions: totalQuestions,
-    });
-  }
+  // const processedTests = [];
+  // const existingTests = tests.filter((test) => !test.deleted_at);
+  // for (const test of existingTests) {
+  //   let totalQuestions = 0;
+  //   for (const partId of test.parts) {
+  //     const part = await ieltsvietModel.testpart.findOne({
+  //       _id: new ObjectId(partId),
+  //       deleted_at: { $exists: false },
+  //     });
+  //     totalQuestions += part.question.length;
+  //   }
+  //   processedTests.push({
+  //     ...test,
+  //     number_of_questions: totalQuestions,
+  //   });
+  // }
 
-  return processedTests;
+  return tests.filter((test) => !test.deleted_at);
 }
 
 async function getAllWritingAnswer() {
@@ -315,7 +357,7 @@ async function updateSkillTest(id, data, type) {
                         answer: question.answer,
                       },
                     };
-                    // Remove old FB fields
+                    // Remove other fields
                     await ieltsvietModel.question.updateOne(
                       { _id: new ObjectId(current_question._id) },
                       {
@@ -323,6 +365,11 @@ async function updateSkillTest(id, data, type) {
                           image: '',
                           start_passage: '',
                           end_passage: '',
+                          heading: '',
+                          options: '',
+                          paragraph_id: '',
+                          feature: '',
+                          sentence: '',
                         },
                       }
                     );
@@ -337,7 +384,7 @@ async function updateSkillTest(id, data, type) {
                         answer: question.answer,
                       },
                     };
-                    // Remove old MP fields
+                    // Remove other fields
                     await ieltsvietModel.question.updateOne(
                       { _id: new ObjectId(current_question._id) },
                       {
@@ -345,6 +392,92 @@ async function updateSkillTest(id, data, type) {
                           question: '',
                           choices: '',
                           isMultiple: '',
+                          heading: '',
+                          options: '',
+                          paragraph_id: '',
+                          feature: '',
+                          sentence: '',
+                        },
+                      }
+                    );
+                    break;
+                  case 'MH':
+                    updateOperation = {
+                      $set: {
+                        q_type: 'MH',
+                        heading: question.heading,
+                        answer: question.answer,
+                        options: question.options,
+                        paragraph_id: question.paragraph_id,
+                      },
+                    };
+                    // Remove other fields
+                    await ieltsvietModel.question.updateOne(
+                      { _id: new ObjectId(current_question._id) },
+                      {
+                        $unset: {
+                          question: '',
+                          choices: '',
+                          isMultiple: '',
+                          image: '',
+                          start_passage: '',
+                          end_passage: '',
+                          feature: '',
+                          sentence: '',
+                        },
+                      }
+                    );
+                    break;
+                  case 'MF':
+                    updateOperation = {
+                      $set: {
+                        q_type: 'MF',
+                        feature: question.feature,
+                        answer: question.answer,
+                        options: question.options,
+                      },
+                    };
+                    // Remove other fields
+                    await ieltsvietModel.question.updateOne(
+                      { _id: new ObjectId(current_question._id) },
+                      {
+                        $unset: {
+                          question: '',
+                          choices: '',
+                          isMultiple: '',
+                          image: '',
+                          start_passage: '',
+                          end_passage: '',
+                          heading: '',
+                          paragraph_id: '',
+                          sentence: '',
+                        },
+                      }
+                    );
+                    break;
+                  case 'TFNG':
+                    updateOperation = {
+                      $set: {
+                        q_type: 'TFNG',
+                        sentence: question.sentence,
+                        answer: question.answer,
+                      },
+                    };
+                    // Remove other fields
+                    await ieltsvietModel.question.updateOne(
+                      { _id: new ObjectId(current_question._id) },
+                      {
+                        $unset: {
+                          question: '',
+                          choices: '',
+                          isMultiple: '',
+                          image: '',
+                          start_passage: '',
+                          end_passage: '',
+                          heading: '',
+                          options: '',
+                          paragraph_id: '',
+                          feature: '',
                         },
                       }
                     );
@@ -370,6 +503,27 @@ async function updateSkillTest(id, data, type) {
                       image: question.image,
                       start_passage: question.start_passage,
                       end_passage: question.end_passage,
+                      answer: question.answer,
+                    };
+                    break;
+                  case 'MH':
+                    question_update = {
+                      heading: question.heading,
+                      answer: question.answer,
+                      options: question.options,
+                      paragraph_id: question.paragraph_id,
+                    };
+                    break;
+                  case 'MF':
+                    question_update = {
+                      feature: question.feature,
+                      answer: question.answer,
+                      options: question.options,
+                    };
+                    break;
+                  case 'TFNG':
+                    question_update = {
+                      sentence: question.sentence,
                       answer: question.answer,
                     };
                     break;
@@ -415,7 +569,7 @@ async function updateSkillTest(id, data, type) {
                         answer: question.answer,
                       },
                     };
-                    // Remove old FB fields
+                    // Remove other fields
                     await ieltsvietModel.question.updateOne(
                       { _id: new ObjectId(current_question._id) },
                       {
@@ -423,6 +577,11 @@ async function updateSkillTest(id, data, type) {
                           image: '',
                           start_passage: '',
                           end_passage: '',
+                          heading: '',
+                          options: '',
+                          paragraph_id: '',
+                          feature: '',
+                          sentence: '',
                         },
                       }
                     );
@@ -437,7 +596,7 @@ async function updateSkillTest(id, data, type) {
                         answer: question.answer,
                       },
                     };
-                    // Remove old MP fields
+                    // Remove other fields
                     await ieltsvietModel.question.updateOne(
                       { _id: new ObjectId(current_question._id) },
                       {
@@ -445,6 +604,92 @@ async function updateSkillTest(id, data, type) {
                           question: '',
                           choices: '',
                           isMultiple: '',
+                          heading: '',
+                          options: '',
+                          paragraph_id: '',
+                          feature: '',
+                          sentence: '',
+                        },
+                      }
+                    );
+                    break;
+                  case 'MH':
+                    updateOperation = {
+                      $set: {
+                        q_type: 'MH',
+                        heading: question.heading,
+                        answer: question.answer,
+                        options: question.options,
+                        paragraph_id: question.paragraph_id,
+                      },
+                    };
+                    // Remove other fields
+                    await ieltsvietModel.question.updateOne(
+                      { _id: new ObjectId(current_question._id) },
+                      {
+                        $unset: {
+                          question: '',
+                          choices: '',
+                          isMultiple: '',
+                          image: '',
+                          start_passage: '',
+                          end_passage: '',
+                          feature: '',
+                          sentence: '',
+                        },
+                      }
+                    );
+                    break;
+                  case 'MF':
+                    updateOperation = {
+                      $set: {
+                        q_type: 'MF',
+                        feature: question.feature,
+                        answer: question.answer,
+                        options: question.options,
+                      },
+                    };
+                    // Remove other fields
+                    await ieltsvietModel.question.updateOne(
+                      { _id: new ObjectId(current_question._id) },
+                      {
+                        $unset: {
+                          question: '',
+                          choices: '',
+                          isMultiple: '',
+                          image: '',
+                          start_passage: '',
+                          end_passage: '',
+                          heading: '',
+                          paragraph_id: '',
+                          sentence: '',
+                        },
+                      }
+                    );
+                    break;
+                  case 'TFNG':
+                    updateOperation = {
+                      $set: {
+                        q_type: 'TFNG',
+                        sentence: question.sentence,
+                        answer: question.answer,
+                      },
+                    };
+                    // Remove other fields
+                    await ieltsvietModel.question.updateOne(
+                      { _id: new ObjectId(current_question._id) },
+                      {
+                        $unset: {
+                          question: '',
+                          choices: '',
+                          isMultiple: '',
+                          image: '',
+                          start_passage: '',
+                          end_passage: '',
+                          heading: '',
+                          options: '',
+                          paragraph_id: '',
+                          feature: '',
                         },
                       }
                     );
@@ -473,6 +718,27 @@ async function updateSkillTest(id, data, type) {
                       answer: question.answer,
                     };
                     break;
+                  case 'MH':
+                    question_update = {
+                      heading: question.heading,
+                      answer: question.answer,
+                      options: question.options,
+                      paragraph_id: question.paragraph_id,
+                    };
+                    break;
+                  case 'MF':
+                    question_update = {
+                      feature: question.feature,
+                      answer: question.answer,
+                      options: question.options,
+                    };
+                    break;
+                  case 'TFNG':
+                    question_update = {
+                      sentence: question.sentence,
+                      answer: question.answer,
+                    };
+                    break;
                 }
                 await ieltsvietModel.question.updateOne(
                   { _id: new ObjectId(current_question._id) },
@@ -481,8 +747,8 @@ async function updateSkillTest(id, data, type) {
               }
             }
             const listening_part_update = {
-              audio: testpart.audio,
-              part_num: testpart.part_num,
+              audio: part.audio || testpart.audio,
+              part_num: part.part_num || testpart.part_num,
             };
             await ieltsvietModel.testpart.updateOne(
               { _id: new ObjectId(testpart._id) },
@@ -508,7 +774,7 @@ async function updateSkillTest(id, data, type) {
               );
             }
             const writing_part_update = {
-              part_num: testpart.part_num,
+              part_num: part.part_num || testpart.part_num,
             };
             await ieltsvietModel.testpart.updateOne(
               { _id: new ObjectId(testpart._id) },
@@ -589,6 +855,33 @@ async function createSkillTest(data) {
                   answer: question.answer,
                 };
                 break;
+              case 'MH':
+                question_insert_r = {
+                  q_type: 'MH',
+                  part_id: insertedPart.insertedId,
+                  heading: question.heading,
+                  answer: question.answer,
+                  options: question.options,
+                  paragraph_id: question.paragraph_id,
+                };
+                break;
+              case 'MF':
+                question_insert_r = {
+                  q_type: 'MF',
+                  part_id: insertedPart.insertedId,
+                  feature: question.feature,
+                  answer: question.answer,
+                  options: question.options,
+                };
+                break;
+              case 'TFNG':
+                question_insert_r = {
+                  q_type: 'TFNG',
+                  part_id: insertedPart.insertedId,
+                  sentence: question.sentence,
+                  answer: question.answer,
+                };
+                break;
               case 'W':
                 question_insert_r = {
                   q_type: 'W',
@@ -664,6 +957,34 @@ async function createSkillTest(data) {
                   answer: question.answer,
                 };
                 break;
+              case 'MH':
+                question_insert_l = {
+                  q_type: 'MH',
+                  part_id: insertedPart.insertedId,
+                  heading: question.heading,
+                  answer: question.answer,
+                  options: question.options,
+                  paragraph_id: question.paragraph_id,
+                };
+                break;
+              case 'MF':
+                question_insert_l = {
+                  q_type: 'MF',
+                  part_id: insertedPart.insertedId,
+                  feature: question.feature,
+                  answer: question.answer,
+                  options: question.options,
+                };
+                break;
+              case 'TFNG':
+                question_insert_l = {
+                  q_type: 'TFNG',
+                  part_id: insertedPart.insertedId,
+                  sentence: question.sentence,
+                  answer: question.answer,
+                  options: question.options,
+                };
+                break;
               case 'W':
                 question_insert_l = {
                   q_type: 'W',
@@ -737,6 +1058,33 @@ async function createSkillTest(data) {
                   answer: question.answer,
                 };
                 break;
+              case 'MH':
+                question_insert_w = {
+                  q_type: 'MH',
+                  part_id: insertedPart.insertedId,
+                  heading: question.heading,
+                  answer: question.answer,
+                  options: question.options,
+                  paragraph_id: question.paragraph_id,
+                };
+                break;
+              case 'MF':
+                question_insert_w = {
+                  q_type: 'MF',
+                  part_id: insertedPart.insertedId,
+                  feature: question.feature,
+                  answer: question.answer,
+                  options: question.options,
+                };
+                break;
+              case 'TFNG':
+                question_insert_w = {
+                  q_type: 'TFNG',
+                  part_id: insertedPart.insertedId,
+                  sentence: question.sentence,
+                  answer: question.answer,
+                };
+                break;
               case 'W':
                 question_insert_w = {
                   q_type: 'W',
@@ -790,6 +1138,10 @@ async function deleteSkillTest(id) {
 async function updateSubmit(data) {
   let parts = [];
   let test_type = '';
+  let total_correct = 0;
+  let total_incorrect = 0;
+  let total_pass = 0;
+
   for (const part of data.parts) {
     const testpart = await ieltsvietModel.testpart.findOne({
       _id: new ObjectId(part.part_id),
@@ -810,39 +1162,142 @@ async function updateSubmit(data) {
           deleted_at: { $exists: false },
         });
         if (question) {
-          if (question.q_type === 'MP' || question.q_type === 'FB') {
-            if (
-              question.answer.length === user_answer.answer.length &&
-              question.answer.every(
-                (val, index) => val === user_answer.answer[index]
-              )
-            ) {
-              correct_count++;
-              is_correct = true;
-            } else if (
-              user_answer.answer.length === 0 &&
-              question.answer.length !== user_answer.answer.length
-            ) {
-              pass_count++;
-              is_pass = true;
-            } else if (
-              user_answer.answer.length !== 0 &&
-              question.answer !== user_answer.answer
-            ) {
-              incorrect_count++;
-              is_incorrect = true;
-            }
-            user_answers.push({
-              question_id: user_answer.question_id,
-              q_type: question.q_type,
-              answer: user_answer.answer,
-              correct_answer: question.answer,
-              is_correct,
-              is_pass,
-            });
+          // Handle different question types
+          switch (question.q_type) {
+            case 'MP':
+              if (
+                question.answer.length ===
+                  user_answer.answer.length &&
+                question.answer.every(
+                  (val, index) => val === user_answer.answer[index]
+                )
+              ) {
+                correct_count++;
+                is_correct = true;
+              } else if (
+                user_answer.answer.length === 0 &&
+                question.answer.length !== user_answer.answer.length
+              ) {
+                pass_count++;
+                is_pass = true;
+              } else if (
+                user_answer.answer.length !== 0 &&
+                question.answer !== user_answer.answer
+              ) {
+                incorrect_count++;
+                is_incorrect = true;
+              }
+              break;
+            case 'FB':
+              if (
+                compareAnswers(
+                  testpart.type === 'R'
+                    ? question.answer
+                    : question.answer[0][0],
+                  testpart.type === 'R'
+                    ? user_answer.answer
+                    : user_answer.answer[0]
+                )
+              ) {
+                correct_count++;
+                is_correct = true;
+              } else if (
+                user_answer.answer.length === 0 &&
+                question.answer.length !== user_answer.answer.length
+              ) {
+                pass_count++;
+                is_pass = true;
+              } else if (
+                user_answer.answer.length !== 0 &&
+                !compareAnswers(
+                  testpart.type === 'R'
+                    ? question.answer
+                    : question.answer[0][0],
+                  testpart.type === 'R'
+                    ? user_answer.answer
+                    : user_answer.answer[0]
+                )
+              ) {
+                incorrect_count++;
+                is_incorrect = true;
+              }
+              break;
+            case 'MH':
+              // For Matching Headings questions
+              if (
+                user_answer.answer &&
+                question.answer &&
+                compareAnswers(question.answer, user_answer.answer[0])
+              ) {
+                correct_count++;
+                is_correct = true;
+              } else if (
+                !user_answer.answer ||
+                user_answer.answer.length === 0
+              ) {
+                pass_count++;
+                is_pass = true;
+              } else {
+                incorrect_count++;
+                is_incorrect = true;
+              }
+              break;
+            case 'MF':
+              // For Matching Features questions
+              if (
+                user_answer.answer &&
+                question.answer &&
+                compareAnswers(question.answer, user_answer.answer[0])
+              ) {
+                correct_count++;
+                is_correct = true;
+              } else if (
+                !user_answer.answer ||
+                user_answer.answer.length === 0
+              ) {
+                pass_count++;
+                is_pass = true;
+              } else {
+                incorrect_count++;
+                is_incorrect = true;
+              }
+              break;
+            case 'TFNG':
+              // For True/False/Not Given questions
+              if (
+                user_answer.answer &&
+                question.answer &&
+                compareAnswers(question.answer, user_answer.answer[0])
+              ) {
+                correct_count++;
+                is_correct = true;
+              } else if (
+                !user_answer.answer ||
+                user_answer.answer.length === 0
+              ) {
+                pass_count++;
+                is_pass = true;
+              } else {
+                incorrect_count++;
+                is_incorrect = true;
+              }
+              break;
           }
+
+          user_answers.push({
+            question_id: user_answer.question_id,
+            q_type: question.q_type,
+            answer: user_answer.answer,
+            correct_answer: question.answer,
+            is_correct,
+            is_pass,
+            is_incorrect,
+          });
         }
       }
+      total_correct += correct_count;
+      total_incorrect += incorrect_count;
+      total_pass += pass_count;
       parts.push({
         type: testpart.type,
         part_id: part.part_id,
@@ -880,13 +1335,54 @@ async function updateSubmit(data) {
       });
     }
   }
+
+  let score = 0;
+  if (total_correct >= 0 && total_correct <= 1) {
+    score = 0;
+  } else if (total_correct >= 2 && total_correct <= 3) {
+    score = 1;
+  } else if (total_correct >= 4 && total_correct <= 5) {
+    score = 2;
+  } else if (total_correct >= 5 && total_correct <= 6) {
+    score = 3;
+  } else if (total_correct >= 7 && total_correct <= 9) {
+    score = 3.5;
+  } else if (total_correct >= 10 && total_correct <= 12) {
+    score = 4;
+  } else if (total_correct >= 13 && total_correct <= 15) {
+    score = 4.5;
+  } else if (total_correct >= 16 && total_correct <= 19) {
+    score = 5;
+  } else if (total_correct >= 20 && total_correct <= 22) {
+    score = 5.5;
+  } else if (total_correct >= 23 && total_correct <= 26) {
+    score = 6;
+  } else if (total_correct >= 27 && total_correct <= 29) {
+    score = 6.5;
+  } else if (total_correct >= 30 && total_correct <= 32) {
+    score = 7;
+  } else if (total_correct >= 33 && total_correct <= 34) {
+    score = 7.5;
+  } else if (total_correct >= 35 && total_correct <= 36) {
+    score = 8;
+  } else if (total_correct >= 37 && total_correct <= 38) {
+    score = 8.5;
+  } else if (total_correct >= 39 && total_correct <= 40) {
+    score = 9;
+  }
+
   const data_insert = {
     user_id: data.user_id,
     user_email: data.user_email,
     test_id: data.test_id,
     test_type: test_type,
     result: parts,
+    score: score,
+    correct_answer: total_correct,
+    incorrect_answer: total_incorrect,
+    pass_answer: total_pass,
   };
+
   const insertedSubmit = await ieltsvietModel.completepart.updateOne(
     {
       user_id: data.user_id,
@@ -895,6 +1391,7 @@ async function updateSubmit(data) {
     },
     { $set: data_insert }
   );
+
   return {
     message: 'Update submit successfully',
     data: {
@@ -907,6 +1404,10 @@ async function updateSubmit(data) {
 async function createSubmit(data) {
   let parts = [];
   let test_type = '';
+  let total_correct = 0;
+  let total_incorrect = 0;
+  let total_pass = 0;
+
   for (const part of data.parts) {
     const testpart = await ieltsvietModel.testpart.findOne({
       _id: new ObjectId(part.part_id),
@@ -918,6 +1419,7 @@ async function createSubmit(data) {
       let incorrect_count = 0;
       let pass_count = 0;
       let user_answers = [];
+
       for (const user_answer of part.user_answers) {
         let is_correct = false;
         let is_incorrect = false;
@@ -926,40 +1428,170 @@ async function createSubmit(data) {
           _id: new ObjectId(user_answer.question_id),
           deleted_at: { $exists: false },
         });
+
         if (question) {
-          if (question.q_type === 'MP' || question.q_type === 'FB') {
-            if (
-              question.answer.length === user_answer.answer.length &&
-              question.answer.every(
-                (val, index) => val === user_answer.answer[index]
-              )
-            ) {
-              correct_count++;
-              is_correct = true;
-            } else if (
-              user_answer.answer.length === 0 &&
-              question.answer.length !== user_answer.answer.length
-            ) {
-              pass_count++;
-              is_pass = true;
-            } else if (
-              user_answer.answer.length !== 0 &&
-              question.answer !== user_answer.answer
-            ) {
-              incorrect_count++;
-              is_incorrect = true;
-            }
-            user_answers.push({
-              question_id: user_answer.question_id,
-              q_type: question.q_type,
-              answer: user_answer.answer,
-              correct_answer: question.answer,
-              is_correct,
-              is_pass,
-            });
+          // Handle different question types
+          switch (question.q_type) {
+            case 'MP':
+              if (
+                question.answer.length ===
+                  user_answer.answer.length &&
+                question.answer.every(
+                  (val, index) => val === user_answer.answer[index]
+                )
+              ) {
+                correct_count++;
+                is_correct = true;
+              } else if (
+                user_answer.answer.length === 0 &&
+                question.answer.length !== user_answer.answer.length
+              ) {
+                pass_count++;
+                is_pass = true;
+              } else if (
+                user_answer.answer.length !== 0 &&
+                question.answer !== user_answer.answer
+              ) {
+                incorrect_count++;
+                is_incorrect = true;
+              }
+              break;
+            case 'FB':
+              if (
+                compareAnswers(
+                  // testpart.type === 'R'
+                  //   ? question.answer
+                  //   : question.answer[0][0],
+                  // testpart.type === 'R'
+                  //   ? user_answer.answer
+                  //   : user_answer.answer[0]
+                  testpart.type === 'R'
+                    ? question.answer
+                    : question.answer[0],
+                  testpart.type === 'R'
+                    ? user_answer.answer
+                    : user_answer.answer[0]
+                )
+              ) {
+                // console.log(
+                //   testpart.type === 'R'
+                //     ? question.answer
+                //     : question.answer[0][0]
+                // );
+                // console.log(
+                //   testpart.type === 'R'
+                //     ? user_answer.answer
+                //     : user_answer.answer[0]
+                // );
+                correct_count++;
+                is_correct = true;
+              } else if (
+                user_answer.answer.length === 0 &&
+                question.answer.length !== user_answer.answer.length
+              ) {
+                pass_count++;
+                is_pass = true;
+              } else if (
+                user_answer.answer.length !== 0 &&
+                !compareAnswers(
+                  testpart.type === 'R'
+                    ? question.answer
+                    : question.answer[0],
+                  testpart.type === 'R'
+                    ? user_answer.answer
+                    : user_answer.answer[0]
+                )
+              ) {
+                // console.log(
+                //   testpart.type === 'R'
+                //     ? question.answer
+                //     : question.answer[0][0]
+                // );
+                // console.log(
+                //   testpart.type === 'R'
+                //     ? user_answer.answer
+                //     : user_answer.answer[0]
+                // );
+                incorrect_count++;
+                is_incorrect = true;
+              }
+              break;
+            case 'MH':
+              // For Matching Headings questions
+              if (
+                user_answer.answer &&
+                question.answer &&
+                compareAnswers(question.answer, user_answer.answer[0])
+              ) {
+                correct_count++;
+                is_correct = true;
+              } else if (
+                !user_answer.answer ||
+                user_answer.answer.length === 0
+              ) {
+                pass_count++;
+                is_pass = true;
+              } else {
+                incorrect_count++;
+                is_incorrect = true;
+              }
+              break;
+            case 'MF':
+              // For Matching Features questions
+              if (
+                user_answer.answer &&
+                question.answer &&
+                compareAnswers(question.answer, user_answer.answer[0])
+              ) {
+                correct_count++;
+                is_correct = true;
+              } else if (
+                !user_answer.answer ||
+                user_answer.answer.length === 0
+              ) {
+                pass_count++;
+                is_pass = true;
+              } else {
+                incorrect_count++;
+                is_incorrect = true;
+              }
+              break;
+            case 'TFNG':
+              // For True/False/Not Given questions
+              if (
+                user_answer.answer &&
+                question.answer &&
+                compareAnswers(question.answer, user_answer.answer[0])
+              ) {
+                correct_count++;
+                is_correct = true;
+              } else if (
+                !user_answer.answer ||
+                user_answer.answer.length === 0
+              ) {
+                pass_count++;
+                is_pass = true;
+              } else {
+                incorrect_count++;
+                is_incorrect = true;
+              }
+              break;
           }
+
+          user_answers.push({
+            question_id: user_answer.question_id,
+            q_type: question.q_type,
+            answer: user_answer.answer,
+            correct_answer: question.answer,
+            is_correct,
+            is_pass,
+            is_incorrect,
+          });
         }
       }
+      total_correct += correct_count;
+      total_incorrect += incorrect_count;
+      total_pass += pass_count;
       parts.push({
         type: testpart.type,
         part_id: part.part_id,
@@ -996,6 +1628,41 @@ async function createSubmit(data) {
         is_complete: part.is_complete,
       });
     }
+  }
+
+  let score = 0;
+  if (total_correct >= 0 && total_correct <= 1) {
+    score = 0;
+  } else if (total_correct >= 2 && total_correct <= 3) {
+    score = 1;
+  } else if (total_correct >= 4 && total_correct <= 5) {
+    score = 2;
+  } else if (total_correct >= 5 && total_correct <= 6) {
+    score = 3;
+  } else if (total_correct >= 7 && total_correct <= 9) {
+    score = 3.5;
+  } else if (total_correct >= 10 && total_correct <= 12) {
+    score = 4;
+  } else if (total_correct >= 13 && total_correct <= 15) {
+    score = 4.5;
+  } else if (total_correct >= 16 && total_correct <= 19) {
+    score = 5;
+  } else if (total_correct >= 20 && total_correct <= 22) {
+    score = 5.5;
+  } else if (total_correct >= 23 && total_correct <= 26) {
+    score = 6;
+  } else if (total_correct >= 27 && total_correct <= 29) {
+    score = 6.5;
+  } else if (total_correct >= 30 && total_correct <= 32) {
+    score = 7;
+  } else if (total_correct >= 33 && total_correct <= 34) {
+    score = 7.5;
+  } else if (total_correct >= 35 && total_correct <= 36) {
+    score = 8;
+  } else if (total_correct >= 37 && total_correct <= 38) {
+    score = 8.5;
+  } else if (total_correct >= 39 && total_correct <= 40) {
+    score = 9;
   }
 
   let user = '';
@@ -1015,6 +1682,10 @@ async function createSubmit(data) {
     test_id: data.test_id,
     test_type: test_type,
     result: parts,
+    score: score,
+    correct_answer: total_correct,
+    incorrect_answer: total_incorrect,
+    pass_answer: total_pass,
     user_avatar: user !== '' ? user.avatar : user,
     user_name: user !== '' ? user.user_name : user,
     test_name: test_name ? test_name.name : '',
@@ -1060,9 +1731,57 @@ function transporter() {
   });
 }
 
+function mailOptionsQA(data) {
+  if (!data || !data.user_email || !data.user_name) {
+    throw new Error('Invalid data for email options');
+  }
+  return {
+    from: {
+      name: 'IELTS Viet Q&A',
+      address: process.env.EMAIL_USER,
+    },
+    to: [`${process.env.EMAIL_CENTER}`],
+    subject: 'Student Q&A IELTS VIET',
+    text: 'Student Q&A from: ' + `${data.user_name}`,
+    html: ` 
+          <h1 style="color: black;">Student's question information</h1>
+          <p style="color: black; font-size: 16px;">
+            Student's name:
+            <span style="font-style: italic; font-weight: bold; color: black;"
+              >${data.user_name}</span
+            >
+          </p>
+
+          <p style="color: black; font-size: 16px;">
+          Student's email:
+            <span style="font-style: italic; font-weight: bold; color: black;"
+              >${data.user_email}</span
+          ></p>
+
+          <p style="color: black; font-size: 16px;">
+            Phone number:
+            <span style="font-style: italic; font-weight: bold; color: black;"
+              >${data.phone}</span
+            ></p>
+          
+          <p style="color: black; font-size: 16px;">
+            Profession:
+            <span style="font-style: italic; font-weight: bold; color: black;"
+              >${data.profession}</span
+            ></p>
+
+          <p style="color: black; font-size: 16px;">
+          Question content:
+            <span style="font-style: italic; font-weight: bold; color: black;"
+              >${data.question}</span
+            ></p>
+          `,
+  };
+}
+
 function mailOptions(data) {
-  const task1Score = parseFloat(data.writing_feedback[0].score);
-  const task2Score = parseFloat(data.writing_feedback[1].score);
+  const task1Score = parseFloat(data?.writing_feedback?.[0]?.score);
+  const task2Score = parseFloat(data?.writing_feedback?.[1]?.score);
   const rawOverallScore = (task1Score + task2Score * 2) / 3;
 
   const overallScore = Math.round(rawOverallScore * 2) / 2;
@@ -1087,20 +1806,27 @@ function mailOptions(data) {
           </p>
           <p style="color: black;">${data.writing_feedback[0].feedback}</p>
           <p style="color: black;">
-            ---------------------------------------------------------------------------------------------
+            -----------------------------------------------------
           </p>
-          <h3 style="color: black;">Writing task 2 score: <strong>${data.writing_feedback[1].score}</strong></h3>
+          ${
+            data?.writing_feedback?.length === 2
+              ? `
+          <h3 style="color: black;">Writing task 2 score: <strong>${data?.writing_feedback[1]?.score}</strong></h3>
           <p style="color: black;">
             Teacher's feedback:
             <span style="font-style: italic; font-weight: bold; color: black;"
-              >${data.writing_feedback[1].teacher}</span
+              >${data?.writing_feedback[1]?.teacher}</span
             >
           </p>
-          <p style="color: black;">${data.writing_feedback[1].feedback}</p>
+          <p style="color: black;">${data?.writing_feedback[1]?.feedback}</p>
           <p style="color: black;">
-            ---------------------------------------------------------------------------------------------
+            -----------------------------------------------------
           </p>
-          <h1 style="color: black;">Writing Overall: ${overallScore.toFixed(1)}</h1>
+         `
+              : ''
+          }
+
+          <h1 style="color: black;">Writing Overall: ${data.writing_feedback.length === 2 ? overallScore.toFixed(1) : data.writing_feedback[0].score}</h1>
           `,
     // attachments: [
     //   // {
@@ -1124,7 +1850,153 @@ async function createFeedback(data) {
   const data_insert = {
     ...data,
   };
-  return await ieltsvietModel.feedback.insertOne(data_insert);
+
+  const feedbackResponse =
+    await ieltsvietModel.feedback.insertOne(data_insert);
+
+  const writing_feedback = await ieltsvietModel.feedback.findOne({
+    _id: feedbackResponse.insertedId,
+  });
+
+  let overallScore = 0;
+  if (writing_feedback) {
+    if (writing_feedback?.writing_feedback?.length === 2) {
+      const score1 = Number(
+        writing_feedback?.writing_feedback?.[0]?.score
+      );
+      const score2 = Number(
+        writing_feedback?.writing_feedback?.[1]?.score
+      );
+      const rawOverallScore = (score1 + score2 * 2) / 3;
+      overallScore = Math.round(rawOverallScore * 2) / 2;
+    } else {
+      overallScore = Number(
+        writing_feedback?.writing_feedback?.[0]?.score
+      );
+    }
+  }
+
+  const test = await getCompleteTest(data.test_id, data.user_id);
+
+  const updateResult = await ieltsvietModel.completepart.updateOne(
+    {
+      test_id: data.test_id,
+      user_id: data.user_id,
+      deleted_at: { $exists: false },
+    },
+    {
+      $set: {
+        score: overallScore,
+        updated_at: new Date(),
+      },
+    }
+  );
+
+  return {
+    message: 'Feedback created and test score updated successfully',
+    data: {
+      feedback_id: feedbackResponse.insertedId,
+      overall_score: overallScore,
+      test_id: data.test_id,
+    },
+  };
+}
+
+async function getFeedbackByTestId(testId, userId) {
+  const feedbacks = await ieltsvietModel.feedback.findOne({
+    test_id: testId,
+    user_id: userId,
+    deleted_at: { $exists: false },
+  });
+  return feedbacks;
+}
+
+const openAIClient = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+async function askChatGPT(userMessage) {
+  try {
+    const content = [
+      {
+        type: 'text',
+        text: `Tôi có một raw data của bài ${userMessage.test_type === 'R' ? 'IELTS Reading' : 'IELTS Listening'} Test: ${userMessage.content} Hãy phân tích cho tôi các dạng câu hỏi trong bài viết và các trường dữ liệu thích hợp trong dạng câu hỏi đó ví dụ Dạng Multiple choice (MP) sẽ có cấu trúc dữ liệu sau: { 'q_type': 'MP', 'question': string, 'choices': string [], 'isMultiple': boolean, 'answer': string [] } Dạng Fill in the blank (FB) sẽ có cấu trúc kiểu dữ liệu sau: { 'q_type': 'FB', 'image': string, 'start_passage': string, 'end_passage': string, 'answer': string [] } Dạng Matching Headings (MH) sẽ có cấu trúc dữ liệu sau: { 'q_type': 'MH', 'heading': string, 'answer': string, 'options': string [], 'paragraph_id': string, } Dạng Matching Features (MF) sẽ có cấu trúc dữ liệu sau: { 'q_type': 'MF', 'feature': string, 'answer': string, 'options': string [], } Dạng True/False/Not Given (TFNG) sẽ có cấu trúc dữ liệu sau: { 'q_type': 'TFNG', 'sentence': string, 'answer': string (TRUE | FALSE | NOT GIVEN) } Dựa vào 5 dạng câu hỏi trên hãy phân tích dữ liệu trong file và lấy các trường dữ liệu thích hợp cho dạng câu hỏi đó. Nếu có dạng câu hỏi khác ngoài 5 dạng câu hỏi trên, hãy phân tích dữ liệu câu hỏi trong dạng bài đó và chuyển hóa thành 1 trong 5 dạng trên. Lưu ý: Viết đầy đủ câu hỏi trong từng dạng và viết từng câu hỏi đừng gom chung câu hỏi trong một dạng vào một json, đảm bảo luôn có đáp án rõ ràng cho mỗi câu hỏi. Sau đó hãy dựa vào cấu trúc json sau đây: ${userMessage.test_type === 'R' ? "{ 'skill': 'R', 'parts': [ { 'image': '', 'content': ' 'part_num': 1, 'questions': [ Questions data ] }, { 'image': '', 'content': ', 'part_num': 2, 'questions': [ Questions data ] }, { 'image': '', 'content': ', 'part_num': 3, 'questions': [ Questions data ] } ], 'name': file-name, 'thumbnail': '', 'time': 60 } Hãy phân tích toàn bộ dữ liệu để lấy dữ liệu bài đọc của từng section trong ielts reading và câu hỏi tương ứng trong section bài đọc đó. Hãy viết và trả về cho tôi dưới dạng 1 file json tổng hợp. Lưu ý: ở passage 1 bắt buộc phải có đủ 13 câu hỏi, passage 2 bắt buộc phải có đủ 13 câu hỏi, passage 3 bắt buộc phải có đủ 14 câu hỏi và mỗi passage chỉ được có 2 - 3 dạng câu hỏi trong 5 dạng câu hỏi trên, bắt buộc phải có tổng cộng 40 câu hỏi trong một bài test." : "{ 'skill': 'L', 'parts': [ { 'audio': '', 'part_num': 1, 'questions': [ Questions data ] }, { 'audio': '', 'part_num': 2, 'questions': [ Questions data ] }, { 'audio': '', 'part_num': 3, 'questions': [ Questions data ] }, { 'audio': '', 'part_num': 4, 'questions': [ Questions data ] } ], 'name': file-name, 'thumbnail': '', 'time': 60 } Hãy phân tích toàn bộ dữ liệu để lấy dữ liệu bài đọc của từng section (tổng cộng có 4 section) trong ielts listening và câu hỏi tương ứng trong section bài nghe đó. Hãy viết và trả về cho tôi dưới dạng 1 file json tổng hợp. Lưu ý: ở passage 1 bắt buộc phải có đủ 10 câu hỏi, passage 2 bắt buộc phải có đủ 10 câu hỏi, passage 3 bắt buộc phải có đủ 10 câu hỏi, passage 4 bắt buộc phải có đủ 10 câu hỏi và mỗi passage chỉ được có 2 - 3 dạng câu hỏi trong 5 dạng câu hỏi trên, bắt buộc phải có tổng cộng 40 câu hỏi trong một bài test."} Chỉ trả về dữ liệu json không cần giải thích gì thêm.`,
+      },
+    ];
+
+    const messages = [
+      {
+        role: 'system',
+        content: `Bạn là một chuyên gia phân tích các dạng đề ${userMessage.test_type === 'R' ? 'IELTS Reading' : 'IELTS Listening'} và chuyển đổi chúng thành định dạng JSON. Phân tích dữ liệu bài đọc và câu hỏi, sau đó trả về kết quả dưới dạng JSON theo cấu trúc được yêu cầu, đảm bảo mỗi câu hỏi có các trường dữ liệu phù hợp với loại câu hỏi.`,
+      },
+      {
+        role: 'user',
+        content: content,
+      },
+    ];
+
+    // console.log('userMessage', userMessage);
+    // console.log('content', content);
+
+    // Add timeout and retry logic to handle 504 errors
+    const maxRetries = 3;
+    let lastError;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const chatCompletion =
+          await openAIClient.chat.completions.create({
+            model: 'gpt-5',
+            messages: messages,
+            // max_tokens: 10000,
+          });
+
+        console.log(
+          'chatCompletion',
+          chatCompletion.choices[0].message.content
+        );
+        return chatCompletion.choices[0].message.content;
+      } catch (error) {
+        lastError = error;
+        console.error(`Attempt ${attempt} failed:`, error.message);
+
+        // If it's a 504 error and we have retries left, wait and retry
+        if (error.status === 504 && attempt < maxRetries) {
+          const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+          console.log(`Waiting ${waitTime}ms before retry...`);
+          await new Promise((resolve) =>
+            setTimeout(resolve, waitTime)
+          );
+          continue;
+        }
+
+        // If it's not a 504 or we're out of retries, break
+        break;
+      }
+    }
+
+    // If all retries failed, throw the last error
+    throw lastError || new Error('All retry attempts failed');
+  } catch (error) {
+    console.error('Error interacting with ChatGPT API:', error);
+
+    // Provide more specific error information
+    if (error.status === 504) {
+      throw new Error(
+        'OpenAI API timeout (504). The request took too long to process. Please try again or reduce the content size.'
+      );
+    } else if (error.status === 429) {
+      throw new Error(
+        'OpenAI API rate limit exceeded (429). Please wait before making another request.'
+      );
+    } else if (error.status >= 500) {
+      throw new Error(
+        `OpenAI API server error (${error.status}). Please try again later.`
+      );
+    } else {
+      throw new Error(`OpenAI API error: ${error.message}`);
+    }
+  }
 }
 
 module.exports = {
@@ -1154,4 +2026,7 @@ module.exports = {
   getCompleteTest,
   getAllAnswerByUserId,
   createFeedback,
+  getFeedbackByTestId,
+  askChatGPT,
+  mailOptionsQA,
 };
