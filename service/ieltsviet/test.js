@@ -748,6 +748,7 @@ async function updateSkillTest(id, data, type) {
             }
             const listening_part_update = {
               audio: part.audio || testpart.audio,
+              content: part.content || testpart.content || '',
               part_num: part.part_num || testpart.part_num,
             };
             await ieltsvietModel.testpart.updateOne(
@@ -924,6 +925,7 @@ async function createSkillTest(data) {
             stest_id: stest_l.insertedId,
             type: 'L',
             audio: part.audio,
+            content: part.content,
             part_num: part.part_num,
             question: [],
           };
@@ -1999,6 +2001,182 @@ async function askChatGPT(userMessage) {
   }
 }
 
+async function createQuestion(data) {
+  try {
+    // Validate required fields
+    if (!data.part_id) {
+      throw new Error('part_id is required');
+    }
+    if (!data.q_type) {
+      throw new Error('q_type is required');
+    }
+
+    // Verify that the part exists
+    const part = await ieltsvietModel.testpart.findOne({
+      _id: new ObjectId(data.part_id),
+      deleted_at: { $exists: false },
+    });
+
+    if (!part) {
+      throw new Error('Test part not found');
+    }
+
+    // If test_id is provided, verify the test exists
+    let test = null;
+    if (data.test_id) {
+      test = await ieltsvietModel.stest.findOne({
+        _id: new ObjectId(data.test_id),
+        deleted_at: { $exists: false },
+      });
+
+      if (!test) {
+        throw new Error('Test not found');
+      }
+
+      // Verify that the part belongs to this test
+      const partBelongsToTest = test.parts.some(
+        (partId) => partId.toString() === data.part_id.toString()
+      );
+
+      if (!partBelongsToTest) {
+        throw new Error('Part does not belong to the specified test');
+      }
+    }
+
+    let question_insert;
+
+    // Build question object based on question type
+    switch (data.q_type) {
+      case 'MP':
+        question_insert = {
+          q_type: 'MP',
+          part_id: new ObjectId(data.part_id),
+          question: data.question,
+          choices: data.choices,
+          isMultiple: data.isMultiple || false,
+          answer: data.answer,
+        };
+        break;
+      case 'FB':
+        question_insert = {
+          q_type: 'FB',
+          part_id: new ObjectId(data.part_id),
+          image: data.image || '',
+          start_passage: data.start_passage,
+          end_passage: data.end_passage,
+          answer: data.answer,
+        };
+        break;
+      case 'MH':
+        question_insert = {
+          q_type: 'MH',
+          part_id: new ObjectId(data.part_id),
+          heading: data.heading,
+          answer: data.answer,
+          options: data.options,
+          paragraph_id: data.paragraph_id,
+        };
+        break;
+      case 'MF':
+        question_insert = {
+          q_type: 'MF',
+          part_id: new ObjectId(data.part_id),
+          feature: data.feature,
+          answer: data.answer,
+          options: data.options,
+        };
+        break;
+      case 'TFNG':
+        question_insert = {
+          q_type: 'TFNG',
+          part_id: new ObjectId(data.part_id),
+          sentence: data.sentence,
+          answer: data.answer,
+        };
+        break;
+      case 'W':
+        question_insert = {
+          q_type: 'W',
+          part_id: new ObjectId(data.part_id),
+          image: data.image || '',
+          content: data.topic || data.content,
+        };
+        break;
+      default:
+        throw new Error(`Invalid question type: ${data.q_type}`);
+    }
+
+    // Insert the question
+    const insertedQuestion =
+      await ieltsvietModel.question.insertOne(question_insert);
+
+    // Add the question to the part's question array
+    await ieltsvietModel.testpart.updateOne(
+      { _id: new ObjectId(data.part_id) },
+      { $addToSet: { question: insertedQuestion.insertedId } }
+    );
+
+    // Prepare response data
+    const responseData = {
+      question_id: insertedQuestion.insertedId,
+      part_id: data.part_id,
+    };
+
+    // If test_id was provided, include it in the response
+    if (data.test_id) {
+      responseData.test_id = data.test_id;
+      responseData.test_updated = true;
+    }
+
+    return {
+      message: 'Create question successfully',
+      data: responseData,
+    };
+  } catch (error) {
+    throw new Error(`Failed to create question: ${error.message}`);
+  }
+}
+
+async function deleteQuestion(id) {
+  try {
+    // Verify that the question exists
+    const question = await ieltsvietModel.question.findOne({
+      _id: new ObjectId(id),
+      deleted_at: { $exists: false },
+    });
+
+    if (!question) {
+      throw new Error('Question not found');
+    }
+
+    // Soft delete the question by setting deleted_at
+    const dataUpdate = {
+      deleted_at: new Date(),
+    };
+
+    await ieltsvietModel.question.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: dataUpdate }
+    );
+
+    // Remove the question from the part's question array
+    await ieltsvietModel.testpart.updateOne(
+      { _id: new ObjectId(question.part_id) },
+      { $pull: { question: new ObjectId(id) } }
+    );
+
+    return {
+      message: 'Delete question successfully',
+      data: {
+        question_id: id,
+        part_id: question.part_id,
+      },
+    };
+  } catch (error) {
+    throw new Error(`Failed to delete question: ${error.message}`);
+  }
+}
+
 module.exports = {
   transporter,
   mailOptions,
@@ -2020,6 +2198,8 @@ module.exports = {
   deleteSkillTest,
   getPart,
   getQuestion,
+  createQuestion,
+  deleteQuestion,
   updateSubmit,
   createSubmit,
   getCompleteTestByUserId,

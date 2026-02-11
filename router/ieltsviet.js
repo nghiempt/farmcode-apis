@@ -177,6 +177,14 @@ function ieltsvietRoute(fastify, options, done) {
     '/test/question/:id',
     ieltsvietController.test.getQuestion
   );
+  fastify.post(
+    '/test/question',
+    ieltsvietController.test.createQuestion
+  );
+  fastify.delete(
+    '/test/question/:id',
+    ieltsvietController.test.deleteQuestion
+  );
 
   fastify.put('/test/submit/', ieltsvietController.test.updateSubmit);
 

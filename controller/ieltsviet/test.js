@@ -447,6 +447,34 @@ async function getFeedbackByTestId(request, reply) {
   }
 }
 
+async function createQuestion(request, reply) {
+  try {
+    const body = request.body;
+    const data = await ieltsvietService.test.createQuestion(body);
+    return reply
+      .status(statusCode.success)
+      .send({ data: data, message: successMessage.index });
+  } catch (err) {
+    reply
+      .status(statusCode.internalError)
+      .send({ message: err.message || failMessage.internalError });
+  }
+}
+
+async function deleteQuestion(request, reply) {
+  try {
+    const { id } = request.params;
+    const data = await ieltsvietService.test.deleteQuestion(id);
+    return reply
+      .status(statusCode.success)
+      .send({ data: data, message: successMessage.index });
+  } catch (err) {
+    reply
+      .status(statusCode.internalError)
+      .send({ message: err.message || failMessage.internalError });
+  }
+}
+
 module.exports = {
   sendEmail,
   sendEmailQA,
@@ -468,6 +496,8 @@ module.exports = {
   updateSkillTest,
   getPart,
   getQuestion,
+  createQuestion,
+  deleteQuestion,
   createSubmit,
   updateSubmit,
   getCompleteTestByUserId,
